@@ -41,65 +41,69 @@ public class ClassFromJarByLocalPathLoader extends ClassLoader {
 
 	@Override
 	protected Class<?> findClass(String name) {
-		Class<?> c = null;
-		JarFile jarFile = null;
+		
+		Class<?> c = findLoadedClass(name);
+		if (c == null) {
+			JarFile jarFile = null;
+			try {
 
-		try {
+				// find jar file by path
+				jarFile = new JarFile(pathToJar);
 
-			// find jar file by path
-			jarFile = new JarFile(pathToJar);
+				// get entries from jar file
+				Enumeration<JarEntry> e = jarFile.entries();
 
-			// get entries from jar file
-			Enumeration<JarEntry> e = jarFile.entries();
+				URL[] urls = { new URL(String.format(PATH_TO_JAR_FILE,
+						pathToJar)) };
 
-			URL[] urls = { new URL(String.format(PATH_TO_JAR_FILE, pathToJar)) };
+				// getting instance of url classloader by given url
+				URLClassLoader cl = URLClassLoader.newInstance(urls);
 
-			// getting instance of url classloader by given url
-			URLClassLoader cl = URLClassLoader.newInstance(urls);
+				// loop by elements in jar file. It will be work until given
+				// class
+				// will be founded
+				while (e.hasMoreElements()) {
+					JarEntry je = (JarEntry) e.nextElement();
+					if (je.isDirectory() || !je.getName().endsWith(CLASS_EXT)) {
+						continue;
+					}
+					String className = je.getName();
 
-			// loop by elements in jar file. It will be work until given class
-			// will be founded
-			while (e.hasMoreElements()) {
-				JarEntry je = (JarEntry) e.nextElement();
-				if (je.isDirectory() || !je.getName().endsWith(CLASS_EXT)) {
-					continue;
-				}
-				String className = je.getName();
+					// removes .class file extension
+					className = className.replaceAll(CLASS_EXT, EMPTY_STRING);
 
-				// removes .class file extension
-				className = className.replaceAll(CLASS_EXT, EMPTY_STRING);
+					// conversion from native file path to class file path
+					className = className.replace(SLASH_CHAR, DOT_CHAR);
 
-				// conversion from native file path to class file path
-				className = className.replace(SLASH_CHAR, DOT_CHAR);
-
-				// loading class file with caching
-				if (className.endsWith(name)) {
-					if (!cache.containsKey(name)) {
-						c = cl.loadClass(className);
-						cache.put(className, c);
-					} else {
-						c = cache.get(className);
+					// loading class file with caching
+					if (className.endsWith(name)) {
+						if (!cache.containsKey(name)) {
+							c = cl.loadClass(className);
+							cache.put(className, c);
+						} else {
+							c = cache.get(className);
+						}
 					}
 				}
-			}
 
-		} catch (IOException ioex) {
-			try {
-				return super.findClass(name);
-			} catch (ClassNotFoundException e) {
-				LOGGER.error(e);
-			}
-		} catch (ClassNotFoundException cnfe) {
-			LOGGER.error(cnfe);
-		} finally {
-			try {
-				if (jarFile != null) {
-					jarFile.close();
-				} else {
-					LOGGER.error(NOT_CLOSED_JAR_MSG);
+			} catch (IOException ioex) {
+				try {
+					return super.findClass(name);
+				} catch (ClassNotFoundException e) {
+					LOGGER.error(e);
 				}
-			} catch (IOException e) {
-				LOGGER.error(NOT_CLOSED_JAR_MSG, e);
+			} catch (ClassNotFoundException cnfe) {
+				LOGGER.error(cnfe);
+			} finally {
+				try {
+					if (jarFile != null) {
+						jarFile.close();
+					} else {
+						LOGGER.error(NOT_CLOSED_JAR_MSG);
+					}
+				} catch (IOException e) {
+					LOGGER.error(NOT_CLOSED_JAR_MSG, e);
+				}
 			}
 		}
 		return c;
