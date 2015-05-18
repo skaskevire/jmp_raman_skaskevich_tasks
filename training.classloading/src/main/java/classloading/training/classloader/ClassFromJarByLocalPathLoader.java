@@ -30,23 +30,46 @@ public class ClassFromJarByLocalPathLoader extends ClassLoader {
 	private static final char SLASH_CHAR = '/';
 	private static final String EMPTY_STRING = "";
 	private static final String NOT_CLOSED_JAR_MSG = "Jar not closed!";
+	private ClassLoader parent;
 
 	private String pathToJar;
 	Map<String, Class<?>> cache = new HashMap<String, Class<?>>();
 
 	public ClassFromJarByLocalPathLoader(String pathtojar, ClassLoader parent) {
 		super(parent);
+		this.parent = parent;
 		this.pathToJar = pathtojar;
 	}
 
 	@Override
+	public synchronized Class<?> loadClass(String name)
+			throws ClassNotFoundException {
+		// First, check if the class has already been loaded
+		Class<?> c = findLoadedClass(name);
+		if (c == null) {
+			try {
+				if (parent != null) {
+					c = parent.loadClass(name);
+				} else {
+					c = ClassLoader.getSystemClassLoader().getParent()
+							.getParent().loadClass(name);
+				}
+			} catch (ClassNotFoundException e) {
+				// If still not found, then invoke findClass in order
+				// to find the class.
+				c = findClass(name);
+			}
+		}
+		return c;
+	}
+
+	@Override
 	protected Class<?> findClass(String name) {
-		
+
 		Class<?> c = findLoadedClass(name);
 		if (c == null) {
 			JarFile jarFile = null;
 			try {
-
 				// find jar file by path
 				jarFile = new JarFile(pathToJar);
 
