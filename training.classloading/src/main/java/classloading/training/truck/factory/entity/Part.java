@@ -26,7 +26,7 @@ public class Part {
 	public void setSerialNumber(String serialNumber) {
 		this.serialNumber = serialNumber;
 	}
-	
+
 	@Override
 	public String toString() {
 		return "Part: " + type.toString() + " S/N: " + serialNumber;

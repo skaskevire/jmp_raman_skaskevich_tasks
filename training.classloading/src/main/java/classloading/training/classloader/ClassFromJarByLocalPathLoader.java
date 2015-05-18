@@ -12,7 +12,7 @@ import java.util.jar.JarFile;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import classloading.training.menu.TruckPlantDetailsOrderMenu;
+import classloading.training.menu.impl.TruckPlantDetailsOrderMenu;
 
 /**
  * Classloader implementation which loads classses from local directory from jar
@@ -26,8 +26,8 @@ public class ClassFromJarByLocalPathLoader extends ClassLoader {
 			.getLogger(TruckPlantDetailsOrderMenu.class);
 	private static final String PATH_TO_JAR_FILE = "jar:file:%s!/";
 	private static final String CLASS_EXT = ".class";
-	private static final char DOT_CHAR = '.';
-	private static final char SLASH_CHAR = '/';
+	private static final char CLASS_DELIM = '.';
+	private static final char NATIVE_FILE_PATH_DELIM = '/';
 	private static final String EMPTY_STRING = "";
 	private static final String NOT_CLOSED_JAR_MSG = "Jar not closed!";
 	private ClassLoader parent;
@@ -38,6 +38,12 @@ public class ClassFromJarByLocalPathLoader extends ClassLoader {
 	public ClassFromJarByLocalPathLoader(String pathtojar, ClassLoader parent) {
 		super(parent);
 		this.parent = parent;
+		this.pathToJar = pathtojar;
+	}
+	
+	public ClassFromJarByLocalPathLoader(String pathtojar) {
+		super(ClassFromJarByLocalPathLoader.class.getClassLoader());
+		this.parent = ClassFromJarByLocalPathLoader.class.getClassLoader();
 		this.pathToJar = pathtojar;
 	}
 
@@ -52,7 +58,7 @@ public class ClassFromJarByLocalPathLoader extends ClassLoader {
 					c = parent.loadClass(name);
 				} else {
 					c = ClassLoader.getSystemClassLoader().getParent()
-							.getParent().loadClass(name);
+							.loadClass(name);
 				}
 			} catch (ClassNotFoundException e) {
 				// If still not found, then invoke findClass in order
@@ -64,7 +70,7 @@ public class ClassFromJarByLocalPathLoader extends ClassLoader {
 	}
 
 	@Override
-	protected Class<?> findClass(String name) {
+	protected Class<?> findClass(String name) throws ClassNotFoundException {
 
 		Class<?> c = findLoadedClass(name);
 		if (c == null) {
@@ -96,7 +102,8 @@ public class ClassFromJarByLocalPathLoader extends ClassLoader {
 					className = className.replaceAll(CLASS_EXT, EMPTY_STRING);
 
 					// conversion from native file path to class file path
-					className = className.replace(SLASH_CHAR, DOT_CHAR);
+					className = className.replace(NATIVE_FILE_PATH_DELIM,
+							CLASS_DELIM);
 
 					// loading class file with caching
 					if (className.endsWith(name)) {
@@ -110,13 +117,7 @@ public class ClassFromJarByLocalPathLoader extends ClassLoader {
 				}
 
 			} catch (IOException ioex) {
-				try {
-					return super.findClass(name);
-				} catch (ClassNotFoundException e) {
-					LOGGER.error(e);
-				}
-			} catch (ClassNotFoundException cnfe) {
-				LOGGER.error(cnfe);
+				throw new ClassNotFoundException(ioex.getMessage(), ioex);
 			} finally {
 				try {
 					if (jarFile != null) {
