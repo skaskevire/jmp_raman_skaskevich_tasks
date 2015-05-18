@@ -16,5 +16,5 @@ public abstract class MenuEntry {
 		this.title = title;
 	}
 
-	public abstract void run();
+	public abstract void startWork();
 }
